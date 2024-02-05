@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<br>
+    <h2>Wallet Dashboard</h2>
+    <br>
+    <p>Your Wallet ID: <b>{{ wallet_id }}</b></p>
+    <p>Balance: <b>{{ balance }}</b></p><!--{{user_id}}-->
+
+    <br>
+    <!-- Send Currency Button -->
+    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#sendCurrencyModal">
+        Send Currency
+    </button>
+
+    <!-- Redeem Paper Wallet Button -->
+    <button type="button" class="btn btn-secondary" data-toggle="modal" data-target="#">
+        Redeem Paper Wallet
+    </button>
+    <button type="button" class="btn btn-secondary" data-toggle="modal" data-target="#makePaperWalletModal">
+        Make Paper Wallet
+    </button>
+
+    <!-- Send Money Modal -->
+    <div class="modal fade" id="sendCurrencyModal" tabindex="-1" role="dialog" aria-labelledby="sendCurrencyModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="sendCurrencyModalLabel">Send Currency</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="sendCurrencyForm">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="recipient">Recipient's Wallet Address</label>
+                            <input type="text" class="form-control" id="recipient" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="amount">Amount</label>
+                            <input type="number" class="form-control" id="amount" required min="1">
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="sendCurrencyButton">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal fade" id="makePaperWalletModal" tabindex="-1" role="dialog" aria-labelledby="makePaperWalletModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="makePaperWalletModalLabel">Make Paper Wallet</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="makePaperWalletForm">
+                        {% csrf_token %}
+                        <div class="form-group" id="paperWalletForm">
+                            <label for="paperWalletAmount">Amount</label>
+                            <input type="number" class="form-control" id="paperWalletAmount" required min="1">
+                        </div>
+                        <p id="newWalletIdDisplay"></p>
+                    </form>
+                    <div class="wallet-card card" id="wallet-card" style="margin-bottom: 10px;display:none;">
+                        <div class="card-body">
+                            <h5 class="card-title">New Paper Wallet Information</h5>
+                            <p class="card-text"><strong>Amount:</strong> <span id="walletCardAmount"></span></p>
+                            <p class="card-text"><strong>Wallet ID:</strong> <span id="walletCardId"></span></p>
+                            <img id="walletCardBarcode" style="width: 100%; max-width: 400px; display: none; margin: 10px auto;">
+                            
+                        </div>
+                        <div class="card-footer">
+                            <button type="button" class="btn btn-primary" onclick="printWalletCard()">Print</button>
+                            <button type="button" class="btn btn-secondary" onclick="sendWalletInfo()">Email/Text</button>
+                        </div>
+                    </div>
+                    
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="makePaperWalletButton">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Bootstrap JavaScript and dependencies from CDN -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.9.2/umd/popper.min.js" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.3/dist/JsBarcode.all.min.js"></script>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        $('#makePaperWalletModal').on('hidden.bs.modal', function () {
+            location.reload();
+        });
+
+        document.getElementById('sendCurrencyButton').addEventListener('click', function() {
+            console.log("Button clicked");
+            var recipient = document.getElementById('recipient').value;
+            var amount = document.getElementById('amount').value;
+
+            var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            console.log(csrfToken);
+
+            axios.post('http://127.0.0.1:8000/blockchain/transfer/', {
+                sender: '{{ wallet_id }}',
+                recipient: recipient,
+                amount: amount
+            }, {
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(function (response) {
+                console.log(response);
+                $('#sendCurrencyModal').modal('hide');
+                setTimeout(function() {
+                    location.reload();
+                }, 500);
+            })
+            .catch(function (error) {
+                console.log(error);
+                // Handle error response
+            });
+
+        });
+
+        document.getElementById('makePaperWalletButton').addEventListener('click', function() {
+            var amount = document.getElementById('paperWalletAmount').value;
+            var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            axios.post('http://127.0.0.1:8000/wallet/make-paper/', {
+                amount: amount
+            }, {
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(function (response) {
+                console.log(response);
+                var newWalletId = response.data.new_wallet_id;
+                // Display new wallet ID
+                // document.getElementById('newWalletIdDisplay').textContent = 'New Wallet ID: ' + newWalletId;
+                // Hide the amount field
+                document.getElementById('paperWalletForm').style.display = 'none';
+                document.getElementById('makePaperWalletButton').style.display = 'none';
+                // $('#makePaperWalletModal').modal('hide');
+                // setTimeout(function() {
+                //     location.reload();
+                // }, 500);
+                document.getElementById('wallet-card').style.display = 'block';
+                setTimeout(function() {
+                    document.getElementById('walletCardAmount').textContent = amount;
+                    document.getElementById('walletCardId').textContent =  newWalletId;
+                    JsBarcode("#walletCardBarcode", newWalletId, {
+                        format: "CODE128"
+                    });
+                    document.getElementById('walletCardBarcode').style.display = 'block';
+                }, 500);
+            })
+            .catch(function (error) {
+                console.log(error);
+                // Handle error response
+            });
+        });
+
+    });
+
+
+function printWalletCard() {
+    var printContent = document.getElementById('wallet-card').innerHTML;
+    var originalContent = document.body.innerHTML;
+    document.body.innerHTML = printContent;
+    window.print();
+    document.body.innerHTML = originalContent;
+}
+
+function sendWalletInfo() {
+    // Implement functionality to send wallet info via email or text
+}
+</script>
+
+
+{% endblock %}
